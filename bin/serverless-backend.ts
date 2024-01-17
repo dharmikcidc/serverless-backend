@@ -2,20 +2,34 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { ServerlessBackendStack } from '../lib/serverless-backend-stack';
+import { CDKContext } from '../types';
 
-const app = new cdk.App();
-new ServerlessBackendStack(app, 'ServerlessBackendStack', {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
+export const getContext = async (app: cdk.App): Promise<CDKContext> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const environment = app.node
+        .tryGetContext("environments")
+      const globals = app.node.tryGetContext("globals");
+      return resolve({ ...globals, ...environment });
+    } catch (error) {
+      console.error(error);
+      return reject();
+    }
+  });
+};
+// Create Stacks
+const createStacks = async () => {
+  try {
+    const app = new cdk.App();
+    const context = await getContext(app);
+    new ServerlessBackendStack(
+      app,
+      `${context.appName}-stack-${context.environment}`,
+      context,
+    );
+  } catch (error) {
+    console.error(error);
+  }
+};
 
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
-
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
-});
+createStacks();
